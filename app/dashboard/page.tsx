@@ -8,7 +8,7 @@ import {
   AlertCircle, Shield, Activity, 
   Terminal, Cpu, Zap, Bell, 
   Plus, ArrowRight, UserPlus, XCircle,
-  Clock
+  Clock, Lock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
