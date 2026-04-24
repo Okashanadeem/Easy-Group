@@ -46,9 +46,9 @@ export async function PATCH(
     if (!project) return NextResponse.json({ error: "Project not found" }, { status: 404 });
     if (project.isLocked) return NextResponse.json({ error: "Project is locked" }, { status: 403 });
 
-    // Authorization: Only leader can modify group
-    if (session.role !== "admin" && group.leaderId !== session.studentId) {
-      return NextResponse.json({ error: "Only group leader can modify group" }, { status: 403 });
+    // Authorization: Admin can do anything, Leader can do anything, Member can only leave
+    if (session.role !== "admin" && group.leaderId !== session.studentId && action !== "LEAVE_GROUP") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     if (action === "UPDATE_INFO") {
@@ -185,6 +185,86 @@ export async function PATCH(
         groupId: group._id,
         status: "UNREAD"
       });
+    }
+    else if (action === "LEAVE_GROUP") {
+      const targetId = session.studentId;
+      if (targetId === group.leaderId) {
+        return NextResponse.json({ error: "Leader cannot leave. Disband the squad or transfer leadership first." }, { status: 400 });
+      }
+
+      group.members = group.members.filter((m: any) => m.studentId !== targetId);
+      await group.save();
+
+      // Cancel related notifications
+      await Notification.deleteMany({
+        recipientId: targetId,
+        groupId: group._id,
+        status: "UNREAD"
+      });
+      
+      return NextResponse.json({ success: true, message: "You have left the squad" });
+    }
+    else if (action === "ADMIN_ADD_MEMBER") {
+      if (session.role !== "admin") return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      
+      const upSid = studentId.toUpperCase();
+      const student = await CamsStudent.findOne({ studentId: upSid });
+      if (!student) return NextResponse.json({ error: "Student not found" }, { status: 404 });
+
+      // 1. Remove from ANY other group in this project
+      const otherGroups = await Group.find({
+        projectId: group.projectId,
+        "members.studentId": upSid
+      });
+
+      for (const otherGroup of otherGroups) {
+        // If they were leader of another group, we might want to handle that
+        // For now, just remove them. If they were leader, the group might become leaderless 
+        // which is bad. Let's prevent moving leaders if they are the only member, or disband.
+        if (otherGroup.leaderId === upSid) {
+            if (otherGroup.members.length === 1) {
+                await Group.findByIdAndDelete(otherGroup._id);
+            } else {
+                // Promote someone else or prevent move
+                const nextMember = otherGroup.members.find((m: any) => m.studentId !== upSid && m.status === "Accepted");
+                if (nextMember) {
+                    otherGroup.leaderId = nextMember.studentId;
+                } else {
+                    // No other accepted members, disband
+                    await Group.findByIdAndDelete(otherGroup._id);
+                    continue;
+                }
+            }
+        }
+        
+        otherGroup.members = otherGroup.members.filter((m: any) => m.studentId !== upSid);
+        await otherGroup.save();
+      }
+
+      // 2. Add to this group (bypass limits)
+      const existingMember = group.members.find((m: any) => m.studentId === upSid);
+      if (existingMember) {
+          existingMember.status = "Accepted";
+          existingMember.addedByAdmin = true;
+      } else {
+          group.members.push({
+            studentId: upSid,
+            name: student.name,
+            status: "Accepted",
+            joinedAt: new Date(),
+            addedByAdmin: true
+          });
+      }
+
+      await group.save();
+      
+      // Clean up notifications
+      await Notification.deleteMany({
+        recipientId: upSid,
+        projectId: group.projectId
+      });
+      
+      return NextResponse.json({ success: true, message: `Student ${upSid} moved to this squad` });
     }
 
     return NextResponse.json(group);

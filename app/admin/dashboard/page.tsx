@@ -326,6 +326,13 @@ export default function AdminDashboard() {
                                     >
                                         {assigningId === proj._id ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
                                     </button>
+                                    <button 
+                                    onClick={() => router.push(`/admin/projects/${proj._id}`)}
+                                    className="p-3 bg-white/5 border border-hq-border rounded-xl text-slate-400 hover:text-hq-blue hover:border-hq-blue/30 transition-all"
+                                    title="View Framework Details"
+                                    >
+                                        <LayoutDashboard className="w-5 h-5" />
+                                    </button>
                                     <a 
                                     href={`/api/projects/${proj._id}/export`}
                                     className="p-3 bg-white/5 border border-hq-border rounded-xl text-slate-400 hover:text-emerald-500 hover:border-emerald-500/30 transition-all"

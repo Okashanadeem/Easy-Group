@@ -5,6 +5,7 @@ export interface IGroupMember {
   name: string;
   status: "Pending" | "Accepted" | "Declined";
   joinedAt: Date;
+  addedByAdmin?: boolean;
 }
 
 export interface IGroup extends Document {
@@ -33,6 +34,7 @@ const GroupSchema = new Schema<IGroup>(
           default: "Pending",
         },
         joinedAt: { type: Date, default: Date.now },
+        addedByAdmin: { type: Boolean, default: false },
       },
     ],
     attributes: { type: Map, of: String },

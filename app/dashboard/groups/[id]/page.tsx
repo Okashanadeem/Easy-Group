@@ -273,7 +273,9 @@ export default function GroupManagementPage({ params }: { params: Promise<{ id: 
                                     </div>
                                     <div className="min-w-0">
                                         <p className="font-bold text-white uppercase tracking-tight text-sm truncate">
-                                            {member.name} {member.studentId === group.leaderId && <span className="text-[8px] bg-hq-blue/20 text-hq-blue px-1.5 py-0.5 rounded ml-2 inline-block">LEADER</span>}
+                                            {member.name} 
+                                            {member.studentId === group.leaderId && <span className="text-[8px] bg-hq-blue/20 text-hq-blue px-1.5 py-0.5 rounded ml-2 inline-block">LEADER</span>}
+                                            {member.addedByAdmin && <span className="text-[8px] bg-amber-500/20 text-amber-500 px-1.5 py-0.5 rounded ml-2 inline-block border border-amber-500/30">BY ADMIN</span>}
                                         </p>
                                         <p className="font-mono text-[9px] text-slate-500">{member.studentId}</p>
                                     </div>
@@ -285,6 +287,20 @@ export default function GroupManagementPage({ params }: { params: Promise<{ id: 
                                     )}>
                                         {member.status}
                                     </span>
+                                    
+                                    {member.studentId === studentId && member.studentId !== group.leaderId && (
+                                        <button 
+                                            onClick={() => {
+                                                if(confirm("Are you sure you want to leave this squad?")) {
+                                                    handleAction("LEAVE_GROUP");
+                                                }
+                                            }}
+                                            className="px-3 py-1 bg-rose-500/10 text-rose-500 border border-rose-500/30 rounded-lg font-mono text-[8px] font-bold uppercase hover:bg-rose-500 hover:text-white transition-all"
+                                        >
+                                            Leave Squad
+                                        </button>
+                                    )}
+
                                     {isLeader && member.studentId !== studentId && !isLocked && (
                                         <div className="flex items-center gap-1">
                                             {member.status === "Accepted" && (
