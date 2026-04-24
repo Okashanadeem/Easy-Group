@@ -47,6 +47,10 @@ export default function ProjectEnrollmentPage({ params }: { params: Promise<{ id
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const confirmLead = confirm("Are you sure that you want to lead this group?");
+    if (!confirmLead) return;
+
     setSubmitting(true);
     setError("");
 

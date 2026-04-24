@@ -32,3 +32,9 @@
 - [x] Apply "HQ" Futuristic UI theme.
 - [x] Add loading states and error handling.
 - [x] Responsive design implementation.
+
+## Phase 7: Auto-Assignment Engine
+- [ ] Implement "Auto-Assign Leftover Students" logic.
+- [ ] Add Shuffle/Assign button to Admin Project Cards.
+- [ ] Develop background assignment algorithm (Fill existing slots -> Create new groups).
+- [ ] Add Admin reporting for auto-assignment results.

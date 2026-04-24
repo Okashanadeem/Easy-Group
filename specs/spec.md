@@ -17,6 +17,7 @@ Easy-Group is a team management platform that synchronizes with the CAMS Enrollm
 - **Monitoring & Export:** 
   - Views all submitted groups, member lists, and their individual statuses.
   - Download Button: Generates a formatted Excel report for the project including all groups, member IDs, names, statuses, and project-specific attributes (Bio, links, etc.).
+  - **Auto-Assignment Engine:** A powerful tool to handle students who failed to join a group manually.
 - **System Cleanup:** A "Hard Reset" feature in the admin panel (protected by password) to wipe all data and start fresh for a new cycle.
 
 ### 2. Group Leader (Student)
@@ -47,3 +48,11 @@ Easy-Group is a team management platform that synchronizes with the CAMS Enrollm
 
 ### Synchronization
 - Whenever the Admin dashboard or Student portal is accessed, the system fetches the latest enrollment data from CAMS via the `/api/sync` endpoints.
+
+### Auto-Assignment Algorithm (Shuffle)
+1. **Identify Leftovers:** Find all students enrolled in the project's course who are NOT in an "Accepted" group for this specific project.
+2. **Fill Existing Slots:** Identify groups that have fewer than `maxMembers`. Distribute leftover students into these slots until either all slots are full or all students are assigned.
+3. **Form New Groups:** If students remain, automatically create new groups of size `maxMembers`.
+4. **Leader Assignment:** For each new group, the first assigned student is designated as the "Leader".
+5. **Residual Handling:** If the final remaining students are fewer than `maxMembers`, they are placed into one final group.
+6. **Preservation:** Existing "Accepted" memberships are NEVER modified or moved.

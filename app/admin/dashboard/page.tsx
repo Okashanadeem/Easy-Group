@@ -21,6 +21,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [assigningId, setAssigningId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   
   // Project Modal State
@@ -141,6 +142,27 @@ export default function AdminDashboard() {
   const handleLogout = () => {
     // In a real app, clear cookie via API
     router.push("/");
+  };
+
+  const handleAutoAssign = async (id: string) => {
+    if (!confirm("⚠️ This will automatically assign all leftover students to groups. This action is irreversible. Proceed?")) return;
+    
+    setAssigningId(id);
+    try {
+      const res = await fetch(`/api/projects/${id}/auto-assign`, { method: "POST" });
+      const data = await res.json();
+      
+      if (res.ok) {
+        alert(`SUCCESS: ${data.message}\n- New Groups: ${data.details.newGroupsCreated}\n- Groups Filled: ${data.details.groupsFilled}\n- Total Students Assigned: ${data.details.studentsAssigned}`);
+        fetchInitialData();
+      } else {
+        alert(data.error || "Assignment failed");
+      }
+    } catch (err) {
+      alert("Network error during assignment");
+    } finally {
+      setAssigningId(null);
+    }
   };
 
   return (
@@ -293,6 +315,17 @@ export default function AdminDashboard() {
                                 </div>
 
                                 <div className="flex items-center gap-3">
+                                    <button 
+                                    onClick={() => handleAutoAssign(proj._id)}
+                                    disabled={assigningId === proj._id}
+                                    className={cn(
+                                        "p-3 border rounded-xl transition-all",
+                                        assigningId === proj._id ? "bg-hq-blue/20 border-hq-blue text-hq-blue" : "bg-white/5 border-hq-border text-slate-400 hover:text-hq-cyan hover:border-hq-cyan/30"
+                                    )}
+                                    title="Auto-Assign Leftover Students"
+                                    >
+                                        {assigningId === proj._id ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
+                                    </button>
                                     <a 
                                     href={`/api/projects/${proj._id}/export`}
                                     className="p-3 bg-white/5 border border-hq-border rounded-xl text-slate-400 hover:text-emerald-500 hover:border-emerald-500/30 transition-all"

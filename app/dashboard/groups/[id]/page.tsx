@@ -7,9 +7,10 @@ import {
   Save, Loader2, Zap, AlertCircle,
   Shield, CheckCircle2, XCircle, 
   Terminal, Cpu, Hash, Lock, Edit2,
-  Crown
+  Crown, ListFilter
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import InviteStudentModal from "@/components/student/InviteStudentModal";
 
 export default function GroupManagementPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -20,6 +21,8 @@ export default function GroupManagementPage({ params }: { params: Promise<{ id: 
   const [error, setError] = useState("");
   const [isLeader, setIsLeader] = useState(false);
   const [studentId, setStudentId] = useState("");
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [pendingInvites, setPendingInvites] = useState<any[]>([]);
   
   // Edit Mode State
   const [isEditing, setIsEditing] = useState(false);
@@ -53,6 +56,13 @@ export default function GroupManagementPage({ params }: { params: Promise<{ id: 
       if (res.ok) {
           const data = await res.json();
           setGroup(data);
+          
+          // Fetch pending invites to show in roster
+          const eligibleRes = await fetch(`/api/groups/${id}/eligible-students`);
+          if (eligibleRes.ok) {
+            const eligibleData = await eligibleRes.json();
+            setPendingInvites(eligibleData.students.filter((s: any) => s.isInvited));
+          }
       }
     } catch (err) {
       console.error(err);
@@ -116,16 +126,17 @@ export default function GroupManagementPage({ params }: { params: Promise<{ id: 
 
   const project = group.projectId;
   const isLocked = project?.isLocked;
-  const isFull = group.members.length >= (project?.maxMembers || 0);
+  const activeMembers = group.members.filter((m: any) => m.status === "Accepted" || m.studentId === group.leaderId);
+  const isFull = (activeMembers.length + pendingInvites.length) >= (project?.maxMembers || 0);
 
   return (
-    <div className="min-h-screen p-6 md:p-10">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <div className="min-h-screen p-4 md:p-10">
+      <div className="max-w-5xl mx-auto space-y-6 md:space-y-8">
         
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-4">
             <button 
                 onClick={() => router.push("/dashboard")}
-                className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors font-mono text-[10px] uppercase tracking-widest"
+                className="flex items-center gap-2 text-slate-500 hover:text-white transition-colors font-mono text-[9px] md:text-[10px] uppercase tracking-widest"
             >
                 <ArrowLeft className="w-4 h-4" />
                 Return to Command
@@ -134,33 +145,34 @@ export default function GroupManagementPage({ params }: { params: Promise<{ id: 
             {isLeader && !isLocked && (
                 <button 
                     onClick={() => handleAction("DISBAND")}
-                    className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 text-rose-500 border border-rose-500/30 rounded-xl font-mono text-[10px] font-bold uppercase hover:bg-rose-500 hover:text-white transition-all"
+                    className="flex items-center gap-2 px-3 md:px-4 py-2 bg-rose-500/10 text-rose-500 border border-rose-500/30 rounded-xl font-mono text-[9px] md:text-[10px] font-bold uppercase hover:bg-rose-500 hover:text-white transition-all"
                 >
                     <Trash2 className="w-4 h-4" /> Disband Squad
                 </button>
             )}
         </div>
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 md:gap-6">
             <div className="space-y-1">
                 <div className="flex items-center gap-3">
-                    <Shield className="w-6 h-6 text-hq-blue" />
-                    <h1 className="text-3xl font-black text-white uppercase tracking-tight">{group.groupName}</h1>
+                    <Shield className="w-5 h-5 md:w-6 md:h-6 text-hq-blue" />
+                    <h1 className="text-2xl md:text-3xl font-black text-white uppercase tracking-tight break-all">{group.groupName}</h1>
                 </div>
-                <div className="flex items-center gap-2 font-mono text-[10px] text-slate-500 uppercase tracking-[0.4em] ml-9">
+                <div className="flex flex-col md:flex-row md:items-center gap-1 md:gap-2 font-mono text-[9px] md:text-[10px] text-slate-500 uppercase tracking-widest md:tracking-[0.4em] ml-0 md:ml-9">
                     <span>Assignment: {project?.title}</span>
-                    <span className="text-hq-blue font-bold">// {project?.courseCode} {project?.courseType && `(${project?.courseType})`}</span>
+                    <span className="text-hq-blue font-bold hidden md:inline">//</span>
+                    <span className="text-hq-blue font-bold">{project?.courseCode} {project?.courseType && `(${project?.courseType})`}</span>
                 </div>
             </div>
             {isLocked ? (
-                <div className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 text-rose-500 border border-rose-500/30 rounded-xl font-mono text-[10px] font-bold uppercase">
-                    <Lock className="w-4 h-4" /> System Locked by Admin
+                <div className="flex items-center gap-2 px-4 py-2 bg-rose-500/10 text-rose-500 border border-rose-500/30 rounded-xl font-mono text-[9px] md:text-[10px] font-bold uppercase w-fit">
+                    <Lock className="w-4 h-4" /> System Locked
                 </div>
             ) : isLeader && (
                 <button 
                     onClick={() => setIsEditing(!isEditing)}
                     className={cn(
-                        "flex items-center gap-2 px-4 py-2 border rounded-xl font-mono text-[10px] font-bold uppercase transition-all",
+                        "flex items-center gap-2 px-4 py-2 border rounded-xl font-mono text-[9px] md:text-[10px] font-bold uppercase transition-all w-fit",
                         isEditing ? "bg-white/10 border-white/30 text-white" : "border-hq-blue/30 text-hq-blue hover:bg-hq-blue/10"
                     )}
                 >
@@ -170,35 +182,105 @@ export default function GroupManagementPage({ params }: { params: Promise<{ id: 
             )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-            {/* Squad Roster */}
-            <div className="lg:col-span-2 space-y-6">
-                <div className="glass-card rounded-3xl border border-hq-border/50 overflow-hidden">
-                    <div className="p-6 border-b border-hq-border/30 bg-white/5 flex items-center justify-between">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-10">
+            {/* Squad Info / Edit Form - TOP ON MOBILE */}
+            <div className="space-y-6 lg:order-2">
+                <div className="glass-card p-6 md:p-8 rounded-2xl md:rounded-3xl border border-hq-border/50">
+                    <h3 className="font-mono text-xs font-black text-white uppercase tracking-widest flex items-center gap-2 mb-6">
+                        <Terminal className="w-4 h-4 text-hq-blue" /> Mission Details
+                    </h3>
+                    
+                    {isEditing ? (
+                        <form onSubmit={handleUpdateInfo} className="space-y-4 md:space-y-6">
+                            <div className="space-y-2">
+                                <label className="font-mono text-[8px] md:text-[9px] text-slate-500 uppercase tracking-widest">Squad Call-Sign</label>
+                                <input 
+                                    type="text"
+                                    className="w-full bg-slate-950 border border-hq-border/50 px-4 py-3 rounded-xl text-white outline-none focus:border-hq-blue/50 text-xs"
+                                    value={editData.groupName}
+                                    onChange={(e) => setEditData({ ...editData, groupName: e.target.value })}
+                                />
+                            </div>
+                            
+                            {Object.entries(editData.attributes).map(([key, val]: [string, any]) => (
+                                <div key={key} className="space-y-2">
+                                    <label className="font-mono text-[8px] md:text-[9px] text-slate-500 uppercase tracking-widest">{key}</label>
+                                    <textarea 
+                                        rows={2}
+                                        className="w-full bg-slate-950 border border-hq-border/50 px-4 py-3 rounded-xl text-white outline-none focus:border-hq-blue/50 text-xs"
+                                        value={val}
+                                        onChange={(e) => setEditData({ 
+                                            ...editData, 
+                                            attributes: { ...editData.attributes, [key]: e.target.value } 
+                                        })}
+                                    />
+                                </div>
+                            ))}
+
+                            <button 
+                                type="submit"
+                                disabled={updating}
+                                className="w-full py-4 bg-hq-blue text-white font-mono text-[9px] md:text-[10px] font-black uppercase rounded-xl glow-blue flex items-center justify-center gap-2"
+                            >
+                                {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> Save Changes</>}
+                            </button>
+                        </form>
+                    ) : (
+                        <div className="space-y-6">
+                            {group.attributes && Object.entries(group.attributes).map(([key, val]: [string, any]) => (
+                                <div key={key}>
+                                    <p className="font-mono text-[8px] md:text-[9px] text-slate-500 uppercase tracking-widest mb-1">{key}</p>
+                                    <p className="text-xs text-white bg-white/5 p-3 rounded-xl border border-hq-border/30 break-words">{val}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {error && (
+                    <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center text-rose-400 gap-3 text-[9px] md:text-[10px] font-bold uppercase animate-shake">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        {error}
+                    </div>
+                )}
+            </div>
+
+            {/* Squad Roster - BELOW ON MOBILE */}
+            <div className="lg:col-span-2 space-y-6 lg:order-1">
+                <div className="glass-card rounded-2xl md:rounded-3xl border border-hq-border/50 overflow-hidden">
+                    <div className="p-4 md:p-6 border-b border-hq-border/30 bg-white/5 flex items-center justify-between">
                         <h3 className="font-mono text-xs font-black text-white uppercase tracking-widest flex items-center gap-2">
                             <Users className="w-4 h-4 text-hq-blue" /> Squad Roster
                         </h3>
-                        <span className="font-mono text-[10px] text-slate-500">
-                            {group.members.length} / {project?.maxMembers} UNITS
-                        </span>
+                        <div className="flex flex-col items-end">
+                            <span className="font-mono text-[9px] md:text-[10px] text-slate-500">
+                                {activeMembers.length} / {project?.maxMembers} UNITS
+                            </span>
+                            {pendingInvites.length > 0 && (
+                                <span className="font-mono text-[8px] text-amber-500 uppercase tracking-widest">
+                                    + {pendingInvites.length} PENDING
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <div className="divide-y divide-hq-border/30">
+                        {/* Current Members */}
                         {group.members.map((member: any) => (
-                            <div key={member.studentId} className="p-6 flex items-center justify-between group hover:bg-white/5 transition-all">
+                            <div key={member.studentId} className="p-4 md:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:bg-white/5 transition-all">
                                 <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-hq-blue/10 border border-hq-blue/30 flex items-center justify-center text-hq-blue font-bold text-xs">
+                                    <div className="w-10 h-10 rounded-full bg-hq-blue/10 border border-hq-blue/30 flex items-center justify-center text-hq-blue font-bold text-xs shrink-0">
                                         {member.name.charAt(0)}
                                     </div>
-                                    <div>
-                                        <p className="font-bold text-white uppercase tracking-tight text-sm">
-                                            {member.name} {member.studentId === group.leaderId && <span className="text-[8px] bg-hq-blue/20 text-hq-blue px-1.5 py-0.5 rounded ml-2">LEADER</span>}
+                                    <div className="min-w-0">
+                                        <p className="font-bold text-white uppercase tracking-tight text-sm truncate">
+                                            {member.name} {member.studentId === group.leaderId && <span className="text-[8px] bg-hq-blue/20 text-hq-blue px-1.5 py-0.5 rounded ml-2 inline-block">LEADER</span>}
                                         </p>
                                         <p className="font-mono text-[9px] text-slate-500">{member.studentId}</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4">
+                                <div className="flex items-center justify-between sm:justify-end gap-4 ml-14 sm:ml-0">
                                     <span className={cn(
-                                        "px-3 py-1 rounded-lg font-mono text-[9px] font-bold uppercase tracking-widest",
+                                        "px-2 md:px-3 py-1 rounded-lg font-mono text-[8px] md:text-[9px] font-bold uppercase tracking-widest",
                                         member.status === "Accepted" ? "bg-emerald-500/10 text-emerald-500" : "bg-amber-500/10 text-amber-500"
                                     )}>
                                         {member.status}
@@ -229,105 +311,92 @@ export default function GroupManagementPage({ params }: { params: Promise<{ id: 
                                 </div>
                             </div>
                         ))}
+
+                        {/* Pending Invites */}
+                        {pendingInvites.map((invite: any) => (
+                            <div key={invite.studentId} className="p-4 md:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-amber-500/5 group hover:bg-amber-500/10 transition-all border-l-2 border-amber-500/30">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 font-bold text-xs opacity-50 shrink-0">
+                                        {invite.name.charAt(0)}
+                                    </div>
+                                    <div className="min-w-0">
+                                        <p className="font-bold text-slate-300 uppercase tracking-tight text-sm italic truncate">
+                                            {invite.name}
+                                        </p>
+                                        <p className="font-mono text-[9px] text-slate-600">{invite.studentId}</p>
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-between sm:justify-end gap-4 ml-14 sm:ml-0">
+                                    <span className="px-2 md:px-3 py-1 rounded-lg font-mono text-[8px] md:text-[9px] font-bold uppercase tracking-widest bg-amber-500/10 text-amber-500/60 animate-pulse text-center">
+                                        Awaiting Response
+                                    </span>
+                                    {isLeader && !isLocked && (
+                                        <button 
+                                            onClick={() => handleAction("CANCEL_INVITE", { studentId: invite.studentId })}
+                                            className="p-2 text-slate-600 hover:text-rose-500 transition-colors"
+                                            title="Revoke Invitation"
+                                        >
+                                            <XCircle className="w-4 h-4" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
                     </div>
                     
                     {isLeader && !isLocked && !isFull && (
-                        <div className="p-6 bg-hq-blue/5 border-t border-hq-border/30">
-                            <label className="font-mono text-[10px] text-slate-500 uppercase tracking-widest ml-1 mb-2 block">
+                        <div className="p-4 md:p-6 bg-hq-blue/5 border-t border-hq-border/30">
+                            <label className="font-mono text-[9px] md:text-[10px] text-slate-500 uppercase tracking-widest ml-1 mb-2 block">
                                 Deploy Invite (Enter Student ID)
                             </label>
-                            <div className="flex gap-2">
-                                <input 
-                                    type="text"
-                                    className="flex-1 bg-slate-950/50 border border-hq-border/50 px-4 py-3 rounded-xl text-white outline-none focus:border-hq-blue/50 uppercase font-mono text-xs"
-                                    placeholder="e.g. BSE-22-001"
-                                    value={inviteId}
-                                    onChange={(e) => setInviteId(e.target.value)}
-                                />
+                            <div className="flex flex-col gap-3">
+                                <div className="flex flex-col sm:flex-row gap-2">
+                                    <input 
+                                        type="text"
+                                        className="flex-1 bg-slate-950/50 border border-hq-border/50 px-4 py-3 rounded-xl text-white outline-none focus:border-hq-blue/50 uppercase font-mono text-xs"
+                                        placeholder="e.g. BSE-22-001"
+                                        value={inviteId}
+                                        onChange={(e) => setInviteId(e.target.value)}
+                                    />
+                                    <button 
+                                        onClick={() => handleAction("INVITE_MEMBER", { studentId: inviteId })}
+                                        disabled={updating || !inviteId}
+                                        className="px-6 py-3 bg-hq-blue text-white font-mono text-[9px] md:text-[10px] font-black uppercase rounded-xl hover:bg-hq-blue/90 transition-all flex items-center justify-center gap-2 shadow-lg shadow-hq-blue/20"
+                                    >
+                                        {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <><UserPlus className="w-4 h-4" /> Invite</>}
+                                    </button>
+                                </div>
                                 <button 
-                                    onClick={() => handleAction("INVITE_MEMBER", { studentId: inviteId })}
-                                    disabled={updating || !inviteId}
-                                    className="px-6 bg-hq-blue text-white font-mono text-[10px] font-black uppercase rounded-xl hover:bg-hq-blue/90 transition-all flex items-center gap-2 shadow-lg shadow-hq-blue/20"
+                                    onClick={() => setIsInviteModalOpen(true)}
+                                    className="w-full py-3 bg-white/5 border border-hq-border/30 hover:bg-white/10 text-slate-400 hover:text-white rounded-xl font-mono text-[9px] md:text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-2"
                                 >
-                                    {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <><UserPlus className="w-4 h-4" /> Invite</>}
+                                    <ListFilter className="w-4 h-4" /> Personnel List
                                 </button>
                             </div>
                         </div>
                     )}
 
                     {isFull && isLeader && !isLocked && (
-                        <div className="p-6 bg-emerald-500/5 border-t border-emerald-500/30 text-center">
-                            <p className="font-mono text-[10px] text-emerald-500 uppercase tracking-widest flex items-center justify-center gap-2">
-                                <CheckCircle2 className="w-4 h-4" /> Squad is at Max Capacity
+                        <div className="p-4 md:p-6 bg-emerald-500/5 border-t border-emerald-500/30 text-center">
+                            <p className="font-mono text-[9px] md:text-[10px] text-emerald-500 uppercase tracking-widest flex items-center justify-center gap-2">
+                                <CheckCircle2 className="w-4 h-4" /> Squad at Max Capacity
                             </p>
                         </div>
                     )}
                 </div>
             </div>
-
-            {/* Squad Info / Edit Form */}
-            <div className="space-y-6">
-                <div className="glass-card p-8 rounded-3xl border border-hq-border/50">
-                    <h3 className="font-mono text-xs font-black text-white uppercase tracking-widest flex items-center gap-2 mb-6">
-                        <Terminal className="w-4 h-4 text-hq-blue" /> Mission Details
-                    </h3>
-                    
-                    {isEditing ? (
-                        <form onSubmit={handleUpdateInfo} className="space-y-6">
-                            <div className="space-y-2">
-                                <label className="font-mono text-[9px] text-slate-500 uppercase tracking-widest">Squad Call-Sign</label>
-                                <input 
-                                    type="text"
-                                    className="w-full bg-slate-950 border border-hq-border/50 px-4 py-3 rounded-xl text-white outline-none focus:border-hq-blue/50 text-xs"
-                                    value={editData.groupName}
-                                    onChange={(e) => setEditData({ ...editData, groupName: e.target.value })}
-                                />
-                            </div>
-                            
-                            {Object.entries(editData.attributes).map(([key, val]: [string, any]) => (
-                                <div key={key} className="space-y-2">
-                                    <label className="font-mono text-[9px] text-slate-500 uppercase tracking-widest">{key}</label>
-                                    <textarea 
-                                        rows={2}
-                                        className="w-full bg-slate-950 border border-hq-border/50 px-4 py-3 rounded-xl text-white outline-none focus:border-hq-blue/50 text-xs"
-                                        value={val}
-                                        onChange={(e) => setEditData({ 
-                                            ...editData, 
-                                            attributes: { ...editData.attributes, [key]: e.target.value } 
-                                        })}
-                                    />
-                                </div>
-                            ))}
-
-                            <button 
-                                type="submit"
-                                disabled={updating}
-                                className="w-full py-4 bg-hq-blue text-white font-mono text-[10px] font-black uppercase rounded-xl glow-blue flex items-center justify-center gap-2"
-                            >
-                                {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> Save Changes</>}
-                            </button>
-                        </form>
-                    ) : (
-                        <div className="space-y-6">
-                            {group.attributes && Object.entries(group.attributes).map(([key, val]: [string, any]) => (
-                                <div key={key}>
-                                    <p className="font-mono text-[9px] text-slate-500 uppercase tracking-widest mb-1">{key}</p>
-                                    <p className="text-xs text-white bg-white/5 p-3 rounded-xl border border-hq-border/30">{val}</p>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {error && (
-                    <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl flex items-center text-rose-400 gap-3 text-[10px] font-bold uppercase animate-shake">
-                        <AlertCircle className="w-4 h-4 shrink-0" />
-                        {error}
-                    </div>
-                )}
-            </div>
         </div>
       </div>
+
+      <InviteStudentModal 
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        groupId={id}
+        maxMembers={project?.maxMembers || 0}
+        currentMemberCount={activeMembers.length}
+        onInvite={(sid) => handleAction("INVITE_MEMBER", { studentId: sid })}
+        onBulkInvite={(sids) => handleAction("BULK_INVITE", { studentIds: sids })}
+      />
     </div>
   );
 }

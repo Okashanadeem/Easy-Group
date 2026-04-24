@@ -70,16 +70,17 @@ A utility function `syncWithCams()` will be triggered:
 1. When Admin clicks "Force Sync" in dashboard.
 2. Periodically via background job (optional).
 3. On first login of a new student session if their ID isn't in cache.
-
+## API Integration Strategy (CAMS Connect)
+...
 ### Fetch Logic
 ```typescript
 async function syncWithCams() {
   const headers = { 'x-api-key': process.env.CAMS_SYNC_KEY };
-  
+
   // 1. Fetch Registrations
   const regRes = await fetch(`${CAMS_URL}/api/sync/registrations`, { headers });
   const students = await regRes.json();
-  
+
   // 2. Fetch Courses
   const courseRes = await fetch(`${CAMS_URL}/api/sync/courses`, { headers });
   const courses = await courseRes.json();
@@ -87,6 +88,18 @@ async function syncWithCams() {
   // 3. Upsert into local CamsCache collection
 }
 ```
+
+## Phase 7: Auto-Assignment Implementation
+- **Endpoint:** `POST /api/projects/[id]/auto-assign`
+- **Algorithm Strategy:**
+  1. Fetch `CamsStudent.find({ "enrolledCourses.courseCode": project.courseCode })`.
+  2. Fetch all `Group.find({ projectId: project._id })`.
+  3. Filter out students already in `members.status === "Accepted"`.
+  4. Iterate through leftover students:
+     - First, target existing groups where `members.length < project.maxMembers`.
+     - Then, chunk remaining students into groups of size `project.maxMembers`.
+     - For new groups, use a default naming convention (e.g., "Auto-Group-X").
+  5. Bulk write updates/creates to MongoDB.
 
 ## Security Implementation
 - **Admin Access:** Middleware will check for `admin_session` cookie/header.

@@ -69,8 +69,18 @@ export async function PATCH(
       await group.save();
     }
     else if (action === "INVITE_MEMBER") {
-      if (group.members.length >= project.maxMembers) {
-        return NextResponse.json({ error: "Group is full" }, { status: 400 });
+      const pendingInvitesCount = await Notification.countDocuments({
+        groupId: group._id,
+        status: "UNREAD",
+        type: "INVITE"
+      });
+
+      const activeMembersCount = group.members.filter((m: any) => 
+        m.status === "Accepted" || m.studentId === group.leaderId
+      ).length;
+
+      if (activeMembersCount + pendingInvitesCount >= project.maxMembers) {
+        return NextResponse.json({ error: "No invitation slots available. Cancel pending invites to free up slots." }, { status: 400 });
       }
 
       // Check if student is already in an accepted group for this project
@@ -81,7 +91,7 @@ export async function PATCH(
       });
       if (alreadyAccepted) return NextResponse.json({ error: "Student is already in a group for this project" }, { status: 400 });
 
-      // Check if an invite is already pending (to avoid duplicates)
+      // Check if an invite is already pending
       const existingInvite = await Notification.findOne({
         recipientId: studentId.toUpperCase(),
         groupId: group._id,
@@ -92,7 +102,6 @@ export async function PATCH(
       const student = await CamsStudent.findOne({ studentId: studentId.toUpperCase() });
       if (!student) return NextResponse.json({ error: "Student not found in CAMS cache" }, { status: 404 });
 
-      // Create Notification (Student is NOT added to group.members yet)
       await Notification.create({
         recipientId: student.studentId,
         senderId: session.studentId,
@@ -100,6 +109,69 @@ export async function PATCH(
         projectId: group.projectId,
         type: "INVITE"
       });
+    }
+    else if (action === "BULK_INVITE") {
+      const { studentIds } = body;
+      if (!studentIds || !Array.isArray(studentIds)) {
+        return NextResponse.json({ error: "Invalid student IDs" }, { status: 400 });
+      }
+
+      const pendingInvitesCount = await Notification.countDocuments({
+        groupId: group._id,
+        status: "UNREAD",
+        type: "INVITE"
+      });
+
+      const activeMembersCount = group.members.filter((m: any) => 
+        m.status === "Accepted" || m.studentId === group.leaderId
+      ).length;
+
+      const slotsLeft = project.maxMembers - (activeMembersCount + pendingInvitesCount);
+      if (slotsLeft <= 0) {
+        return NextResponse.json({ error: "No invitation slots available." }, { status: 400 });
+      }
+
+      const toInvite = studentIds.slice(0, slotsLeft);
+      const results = [];
+
+      for (const sid of toInvite) {
+        const upSid = sid.toUpperCase();
+        
+        const alreadyAccepted = await Group.findOne({
+          projectId: group.projectId,
+          "members.studentId": upSid,
+          "members.status": "Accepted"
+        });
+        if (alreadyAccepted) continue;
+
+        const existingInvite = await Notification.findOne({
+          recipientId: upSid,
+          groupId: group._id,
+          status: "UNREAD"
+        });
+        if (existingInvite) continue;
+
+        const student = await CamsStudent.findOne({ studentId: upSid });
+        if (!student) continue;
+
+        await Notification.create({
+          recipientId: student.studentId,
+          senderId: session.studentId,
+          groupId: group._id,
+          projectId: group.projectId,
+          type: "INVITE"
+        });
+        results.push(upSid);
+      }
+      return NextResponse.json({ success: true, invitedCount: results.length });
+    }
+    else if (action === "CANCEL_INVITE") {
+      await Notification.deleteMany({
+        recipientId: studentId,
+        groupId: group._id,
+        status: "UNREAD"
+      });
+      return NextResponse.json({ success: true, message: "Invitation revoked" });
     }
     else if (action === "REMOVE_MEMBER") {
       if (studentId === group.leaderId) return NextResponse.json({ error: "Cannot remove leader" }, { status: 400 });
