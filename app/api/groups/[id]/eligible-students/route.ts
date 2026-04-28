@@ -45,12 +45,24 @@ export async function GET(
     });
 
     // 4. Find pending notifications from THIS group
-    const pendingNotifications = await Notification.find({
+    const pendingNotificationsFromThisGroup = await Notification.find({
       groupId: id,
       type: "INVITE",
       status: "UNREAD"
     });
-    const pendingInvites = new Set(pendingNotifications.map(n => n.recipientId));
+    const pendingInvites = new Set(pendingNotificationsFromThisGroup.map(n => n.recipientId));
+
+    // 4.5 Find all pending INVITE notifications for this project to show badges
+    const allPendingInvitesInProject = await Notification.find({
+      projectId: project._id,
+      type: "INVITE",
+      status: "UNREAD"
+    });
+
+    const inviteCounts: { [key: string]: number } = {};
+    allPendingInvitesInProject.forEach(n => {
+      inviteCounts[n.recipientId] = (inviteCounts[n.recipientId] || 0) + 1;
+    });
 
     // 5. Filter and format the list
     const eligibleStudents = students
@@ -59,7 +71,8 @@ export async function GET(
         studentId: s.studentId,
         name: s.name,
         email: s.email,
-        isInvited: pendingInvites.has(s.studentId)
+        isInvited: pendingInvites.has(s.studentId),
+        pendingRequestsCount: inviteCounts[s.studentId] || 0
       }));
 
     return NextResponse.json({

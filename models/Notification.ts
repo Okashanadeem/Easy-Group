@@ -5,7 +5,7 @@ export interface INotification extends Document {
   senderId: string;
   groupId: mongoose.Types.ObjectId;
   projectId: mongoose.Types.ObjectId;
-  type: "INVITE";
+  type: "INVITE" | "JOIN_REQUEST";
   status: "UNREAD" | "READ" | "RESPONDED";
   createdAt: Date;
   updatedAt: Date;
@@ -17,7 +17,7 @@ const NotificationSchema = new Schema<INotification>(
     senderId: { type: String, required: true },
     groupId: { type: Schema.Types.ObjectId, ref: "Group", required: true },
     projectId: { type: Schema.Types.ObjectId, ref: "Project", required: true },
-    type: { type: String, default: "INVITE" },
+    type: { type: String, enum: ["INVITE", "JOIN_REQUEST"], default: "INVITE" },
     status: {
       type: String,
       enum: ["UNREAD", "READ", "RESPONDED"],

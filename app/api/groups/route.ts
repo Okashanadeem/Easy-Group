@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/lib/db";
 import Group from "@/models/Group";
 import Project from "@/models/Project";
+import Notification from "@/models/Notification";
 import { getSession } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
@@ -11,12 +12,44 @@ export async function GET(req: NextRequest) {
 
     const { searchParams } = new URL(req.url);
     const projectId = searchParams.get("projectId");
+    const discovery = searchParams.get("discovery") === "true";
 
     await dbConnect();
     
     let groups;
     if (session.role === "admin") {
       groups = await Group.find(projectId ? { projectId } : {});
+    } else if (discovery && projectId) {
+      // Find all groups for this project
+      const allGroups = await Group.find({ projectId }).populate("projectId");
+      
+      const filteredGroups = allGroups.filter(g => {
+        const isMember = g.members.some((m: any) => m.studentId === session.studentId);
+        const acceptedCount = g.members.filter((m: any) => m.status === "Accepted").length;
+        const isFull = acceptedCount >= (g.projectId as any).maxMembers;
+        return !isMember && !isFull;
+      });
+
+      // Enhance groups with pending counts
+      groups = await Promise.all(filteredGroups.map(async (g) => {
+        const pendingInvites = await Notification.countDocuments({
+          groupId: g._id,
+          type: "INVITE",
+          status: "UNREAD"
+        });
+        const pendingRequests = await Notification.countDocuments({
+          groupId: g._id,
+          type: "JOIN_REQUEST",
+          status: "UNREAD"
+        });
+        
+        const groupObj = g.toObject();
+        return {
+          ...groupObj,
+          pendingInvites,
+          pendingRequests
+        };
+      }));
     } else {
       // Students see groups they are part of
       groups = await Group.find({

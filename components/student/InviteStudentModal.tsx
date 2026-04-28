@@ -9,6 +9,7 @@ interface Student {
   name: string;
   email: string;
   isInvited: boolean;
+  pendingRequestsCount: number;
 }
 
 interface InviteStudentModalProps {
@@ -236,9 +237,16 @@ export default function InviteStudentModal({
                       {student.name.charAt(0)}
                     </div>
                     <div className="min-w-0">
-                      <p className="font-bold text-white uppercase tracking-tight text-xs md:text-sm truncate">
-                        {student.name}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-white uppercase tracking-tight text-xs md:text-sm truncate">
+                          {student.name}
+                        </p>
+                        {student.pendingRequestsCount > 0 && (
+                          <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-500 border border-amber-500/30 rounded font-mono text-[7px] md:text-[8px] font-bold animate-pulse">
+                            {student.pendingRequestsCount} PENDING
+                          </span>
+                        )}
+                      </div>
                       <p className="font-mono text-[8px] md:text-[9px] text-slate-500 truncate">{student.studentId}</p>
                     </div>
                   </div>

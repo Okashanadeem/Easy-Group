@@ -82,10 +82,7 @@ export default function StudentDashboard() {
   };
 
   const handleCreateGroup = (projectId: string) => {
-    const confirmLead = confirm("Are you sure that you want to lead this group?");
-    if (confirmLead) {
-        router.push(`/dashboard/projects/${projectId}`);
-    }
+    router.push(`/dashboard/projects/${projectId}`);
   };
 
   const handleLogout = () => {
@@ -154,31 +151,38 @@ export default function StudentDashboard() {
                                         <Zap className="w-8 h-8 text-slate-700 mx-auto mb-3 opacity-20" />
                                         <p className="font-mono text-[9px] text-slate-500 uppercase tracking-widest">No active requests.</p>
                                     </div>
-                                ) : notifications.map((note) => (
-                                    <div key={note._id} className="p-4 mb-2 bg-white/[0.02] border border-hq-border/20 rounded-2xl hover:bg-white/5 transition-all">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <span className="font-mono text-[8px] text-hq-cyan uppercase font-bold tracking-widest">{note.projectId?.courseCode}</span>
-                                            <span className="font-mono text-[7px] text-slate-600 uppercase tracking-tighter italic">{note.projectId?.title}</span>
+                                ) : notifications.map((note) => {
+                                    const isInvite = note.type === "INVITE";
+                                    return (
+                                        <div key={note._id} className="p-4 mb-2 bg-white/[0.02] border border-hq-border/20 rounded-2xl hover:bg-white/5 transition-all">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <span className="font-mono text-[8px] text-hq-cyan uppercase font-bold tracking-widest">{note.projectId?.courseCode}</span>
+                                                <span className="font-mono text-[7px] text-slate-600 uppercase tracking-tighter italic">{note.projectId?.title}</span>
+                                            </div>
+                                            <p className="text-[11px] text-slate-200 mb-4 leading-relaxed">
+                                                {isInvite ? (
+                                                    <>Recruitment request from <span className="text-white font-black uppercase">{note.groupId?.groupName}</span></>
+                                                ) : (
+                                                    <><span className="text-white font-black uppercase">{note.senderId}</span> requested to join <span className="text-white font-black uppercase">{note.groupId?.groupName}</span></>
+                                                )}
+                                            </p>
+                                            <div className="flex gap-2">
+                                                <button 
+                                                    onClick={() => handleInviteResponse(note._id, "ACCEPT")}
+                                                    className="flex-1 py-2.5 bg-hq-blue text-white font-mono text-[9px] font-black uppercase hover:bg-hq-blue/90 glow-blue transition-all rounded-xl flex items-center justify-center gap-2"
+                                                >
+                                                    <CheckCircle2 className="w-3 h-3" /> {isInvite ? "Accept" : "Approve"}
+                                                </button>
+                                                <button 
+                                                    onClick={() => handleInviteResponse(note._id, "DECLINE")}
+                                                    className="px-4 py-2.5 bg-rose-500/10 text-rose-500 border border-rose-500/30 font-mono text-[9px] font-black uppercase hover:bg-rose-500 hover:text-white transition-all rounded-xl"
+                                                >
+                                                    <XCircle className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
-                                        <p className="text-[11px] text-slate-200 mb-4 leading-relaxed">
-                                            Recruitment request from <span className="text-white font-black uppercase">{note.groupId?.groupName}</span>
-                                        </p>
-                                        <div className="flex gap-2">
-                                            <button 
-                                                onClick={() => handleInviteResponse(note._id, "ACCEPT")}
-                                                className="flex-1 py-2.5 bg-hq-blue text-white font-mono text-[9px] font-black uppercase hover:bg-hq-blue/90 glow-blue transition-all rounded-xl flex items-center justify-center gap-2"
-                                            >
-                                                <CheckCircle2 className="w-3 h-3" /> Accept
-                                            </button>
-                                            <button 
-                                                onClick={() => handleInviteResponse(note._id, "DECLINE")}
-                                                className="px-4 py-2.5 bg-rose-500/10 text-rose-500 border border-rose-500/30 font-mono text-[9px] font-black uppercase hover:bg-rose-500 hover:text-white transition-all rounded-xl"
-                                            >
-                                                <XCircle className="w-4 h-4" />
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     </>
