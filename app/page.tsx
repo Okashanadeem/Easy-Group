@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { 
   Shield, User, Hash, Lock, 
@@ -13,7 +13,19 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"student" | "admin">("student");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [suggestion, setSuggestion] = useState("");
   const router = useRouter();
+
+  useEffect(() => {
+    const autoSync = async () => {
+      try {
+        await fetch("/api/sync", { method: "POST" });
+      } catch (err) {
+        console.error("Background sync failed:", err);
+      }
+    };
+    autoSync();
+  }, []);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -25,12 +37,21 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSuggestion("");
 
     try {
       const endpoint = mode === "student" ? "/api/login" : "/api/admin/login";
+      
+      // Trim inputs
+      const trimmedData = {
+        name: formData.name.trim(),
+        studentId: formData.studentId.trim(),
+        password: formData.password.trim()
+      };
+
       const body = mode === "student" 
-        ? { name: formData.name, studentId: formData.studentId }
-        : { password: formData.password };
+        ? { name: trimmedData.name, studentId: trimmedData.studentId }
+        : { password: trimmedData.password };
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -49,6 +70,9 @@ export default function LoginPage() {
         }
       } else {
         setError(data.error || "Authentication failed");
+        if (data.suggestion) {
+          setSuggestion(data.suggestion);
+        }
       }
     } catch (err) {
       setError("Connection to HQ Core failed");
@@ -143,9 +167,25 @@ export default function LoginPage() {
             )}
 
             {error && (
-              <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center text-rose-400 gap-3 text-[10px] font-bold uppercase animate-pulse">
-                <Activity className="w-4 h-4 shrink-0" />
-                {error}
+              <div className="space-y-3">
+                <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center text-rose-400 gap-3 text-[10px] font-bold uppercase animate-pulse">
+                  <Activity className="w-4 h-4 shrink-0" />
+                  {error}
+                </div>
+                {suggestion && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFormData({ ...formData, name: suggestion });
+                      setSuggestion("");
+                      setError("");
+                    }}
+                    className="w-full p-4 bg-hq-blue/10 border border-hq-blue/30 rounded-xl text-hq-blue text-[10px] font-bold uppercase text-left hover:bg-hq-blue/20 transition-all flex items-center justify-between group"
+                  >
+                    <span>Did you mean: <span className="underline">{suggestion}</span>?</span>
+                    <ChevronRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
+                  </button>
+                )}
               </div>
             )}
 
